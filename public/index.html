@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TON Butler</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <div id="header">
+            <div>EXP: <span id="exp-display">0</span></div>
+            <div>TON: <span id="ton-display">0.00</span></div>
+        </div>
+        <canvas id="gameCanvas" width="350" height="200"></canvas>
+        
+        <div id="controls">
+            <button id="sell-exp-btn">Продать 100 EXP (за 0.1 TON)</button>
+            <button id="withdraw-btn">Вывести TON</button>
+        </div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>
