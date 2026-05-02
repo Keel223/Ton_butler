@@ -1,0 +1,4 @@
+  "scripts": {
+    "start": "vercel dev",
+    "build": "echo 'Building for Vercel'"
+  }
