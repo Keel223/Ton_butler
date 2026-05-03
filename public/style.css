@@ -1,47 +1,27 @@
 body {
-    margin: 0;
-    padding: 0;
-    background-color: #1a1a1a;
-    color: white;
-    font-family: Arial, sans-serif;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
+    margin: 0; padding: 0; background-color: #1a1a1a; color: white;
+    font-family: Arial, sans-serif; display: flex; justify-content: center; height: 100vh;
 }
-#app {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    width: 350px;
-}
-#header {
-    display: flex;
-    justify-content: space-between;
-    background: #333;
-    padding: 10px;
-    border-radius: 5px;
-    font-weight: bold;
-}
-#gameCanvas {
-    background: #2c3e50;
-    border: 2px solid #34495e;
-    border-radius: 5px;
-}
-#controls {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-button {
-    background: #0088cc;
-    color: white;
-    border: none;
-    padding: 10px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: bold;
-}
-button:active {
-    background: #006699;
-}
+#app { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 400px; padding: 10px; box-sizing: border-box;}
+#header { display: flex; justify-content: space-between; background: #333; padding: 10px; border-radius: 5px; font-size: 12px; font-weight: bold; flex-wrap: wrap;}
+#gameCanvas { background: #2c3e50; border: 2px solid #34495e; border-radius: 5px; width: 100%; height: auto; }
+
+#menu { display: flex; gap: 5px; }
+.tab-btn { flex: 1; background: #444; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; }
+.tab-btn.active { background: #0088cc; }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.upgrade-card { background: #2c3e50; padding: 15px; border-radius: 8px; margin-bottom: 10px; text-align: center; }
+.upgrade-card h3 { margin: 0 0 10px 0; color: #f1c40f; }
+.upgrade-card button, #create-listing-btn, #withdraw-btn { background: #27ae60; color: white; border: none; padding: 10px; width: 100%; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 10px;}
+#withdraw-btn { background: #e67e22; }
+
+.market-item { background: #34495e; padding: 10px; border-radius: 5px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; font-size: 14px;}
+.buy-btn { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; }
+
+.modal { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; }
+.modal-content { background: #2c3e50; padding: 20px; border-radius: 10px; width: 80%; display: flex; flex-direction: column; gap: 10px; }
+.modal-content input { padding: 10px; border-radius: 5px; border: none; font-size: 16px; }
+.modal-content button { background: #0088cc; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; }
