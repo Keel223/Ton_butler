@@ -9,16 +9,56 @@
 <body>
     <div id="app">
         <div id="header">
-            <div>EXP: <span id="exp-display">0</span></div>
-            <div>TON: <span id="ton-display">0.00</span></div>
+            <div>⚔️ DMG: <span id="damage-display">1</span> | 🔥 Rate: <span id="rate-display">500</span>ms</div>
+            <div>✨ EXP: <span id="exp-display">0</span></div>
+            <div>💎 TON: <span id="ton-display">0.00</span></div>
         </div>
-        <canvas id="gameCanvas" width="350" height="200"></canvas>
         
-        <div id="controls">
-            <button id="sell-exp-btn">Продать 100 EXP (за 0.1 TON)</button>
-            <button id="withdraw-btn">Вывести TON</button>
+        <nav id="menu">
+            <button class="tab-btn active" onclick="switchTab('game')">Игра</button>
+            <button class="tab-btn" onclick="switchTab('upgrade')">Улучшения</button>
+            <button class="tab-btn" onclick="switchTab('market')">P2P Рынок</button>
+        </nav>
+
+        <!-- ЭКРАН ИГРЫ -->
+        <div id="tab-game" class="tab-content active">
+            <canvas id="gameCanvas" width="350" height="200"></canvas>
+        </div>
+
+        <!-- ЭКРАН УЛУЧШЕНИЙ -->
+        <div id="tab-upgrade" class="tab-content">
+            <div class="upgrade-card">
+                <h3>Урон Батлера</h3>
+                <p>Убивай монстров быстрее!</p>
+                <button onclick="upgradeStat('damage')">Прокачать (100 EXP)</button>
+            </div>
+            <div class="upgrade-card">
+                <h3>Скорострельность</h3>
+                <p>Стреляй чаще (-50мс)</p>
+                <button onclick="upgradeStat('fireRate')">Прокачать (150 EXP)</button>
+            </div>
+        </div>
+
+        <!-- ЭКРАН РЫНКА -->
+        <div id="tab-market" class="tab-content">
+            <button id="create-listing-btn" onclick="openListingModal()">Продать EXP</button>
+            <button id="withdraw-btn" onclick="withdrawTon()">Вывести TON</button>
+            <h3>Лоты на продаже:</h3>
+            <div id="market-listings"></div>
         </div>
     </div>
+
+    <!-- Модалка для создания лота -->
+    <div id="listing-modal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h3>Выставить EXP на продажу</h3>
+            <input type="number" id="list-exp-amount" placeholder="Сколько EXP продать?">
+            <input type="number" id="list-ton-price" placeholder="Цена в TON (напр. 0.5)" step="0.01">
+            <button onclick="createListing()">Выставить на рынок</button>
+            <button onclick="closeListingModal()">Отмена</button>
+        </div>
+    </div>
+
     <script src="game.js"></script>
 </body>
 </html>
