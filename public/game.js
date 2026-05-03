@@ -1,23 +1,61 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-const TG_ID = "test_user_123"; 
+const TG_ID = "test_user_123"; // Заменить на Telegram ID
 const API_URL = '/api'; 
+const TREASURY_WALLET = "UQD1gupv0Z0UPnKKYENmerBA526cCiNvhdr4VO0LofATa8v6"; // Твой кошелек
 
-// Состояние игры
+// --- TON CONNECT ---
+const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+    manifestUrl: 'https://raw.githubusercontent.com/CryptoBute/ton-connect-manifest/main/tonconnect-manifest.json', // Временный манифест для теста
+    buttonRootId: 'ton-connect-container'
+});
+
+tonConnectUI.onStatusChange(async (walletInfo) => {
+    if (walletInfo) {
+        console.log("Кошелек подключен: ", walletInfo.account.address);
+    }
+});
+
+async function depositTon() {
+    if (!tonConnectUI.connected) {
+        await tonConnectUI.connectWallet();
+    }
+    const amount = prompt("Сколько TON вы хотите внести?", "0.1");
+    if (!amount || parseFloat(amount) <= 0) return;
+
+    const transaction = {
+        validUntil: Math.floor(Date.now() / 1000) + 60,
+        messages: [
+            {
+                address: TREASURY_WALLET,
+                amount: String(Math.round(parseFloat(amount) * 1000000000)) // TON в нанотонах
+            }
+        ]
+    };
+    
+    try {
+        await tonConnectUI.sendTransaction(transaction);
+        alert("Транзакция отправлена! Начисление произойдет после подтверждения сети.");
+        // В реальном проекте тут нужно слушать вебхук от TON, а для старта можно начислять вручную в админке
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+// --- Состояние игры ---
 let playerExp = 0;
 let playerTon = 0.0;
 let playerDamage = 1;
 let playerFireRate = 500;
+let animFrame = 0; // Для анимации ходьбы
 
-// Объекты
-const butler = { x: 50, y: 130, width: 40, height: 60, speed: 1.5, direction: 1 };
+const butler = { x: 150, y: 320, width: 50, height: 70, speed: 2, direction: 1 };
 let monsters = [];
 let bullets = [];
 let lastShot = 0;
 
-// --- ЛОГИКА API И ИНТЕРФЕЙСА ---
-
+// --- API И ИНТЕРФЕЙС ---
 async function fetchUserData() {
     const res = await fetch(`${API_URL}/user/${TG_ID}`);
     const data = await res.json();
@@ -40,43 +78,31 @@ function switchTab(tabName) {
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(`tab-${tabName}`).classList.add('active');
     event.target.classList.add('active');
-    
     if(tabName === 'market') loadMarket();
 }
 
-// --- ПРОКАЧКА ---
 async function upgradeStat(stat) {
     const cost = stat === 'damage' ? 100 : 150;
     if (playerExp < cost) return alert('Мало EXP!');
-    
     await fetch(`${API_URL}/upgrade`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tgId: TG_ID, stat: stat, cost: cost })
     });
     fetchUserData();
 }
 
-// --- P2P РЫНОК ---
 async function loadMarket() {
     const res = await fetch(`${API_URL}/market`);
     const listings = await res.json();
     const container = document.getElementById('market-listings');
     container.innerHTML = '';
-    
-    if (listings.length === 0) {
-        container.innerHTML = '<p style="text-align:center; color: #bdc3c7;">Лотов нет</p>';
-        return;
-    }
-
+    if (listings.length === 0) { container.innerHTML = '<p style="text-align:center; color: #8395a7;">Лотов нет</p>'; return; }
     listings.forEach(listing => {
         const isOwn = listing.seller_id === TG_ID;
         const div = document.createElement('div');
         div.className = 'market-item';
-        div.innerHTML = `
-            <div>✨ ${listing.exp_amount} EXP -> 💎 ${listing.ton_price} TON<br><small>Продавец: ${listing.seller_id}</small></div>
-            ${isOwn ? '<small>Ваш лот</small>' : `<button class="buy-btn" onclick="buyListing(${listing.id})">Купить</button>`}
-        `;
+        div.innerHTML = `<div>✨ ${listing.exp_amount} EXP -> 💎 ${listing.ton_price} TON<br><small>Продавец: ${listing.seller_id}</small></div>
+        ${isOwn ? '<small>Ваш лот</small>' : `<button class="buy-btn" onclick="buyListing(${listing.id})">Купить</button>`}`;
         container.appendChild(div);
     });
 }
@@ -88,25 +114,19 @@ async function createListing() {
     const expAmount = parseInt(document.getElementById('list-exp-amount').value);
     const tonPrice = parseFloat(document.getElementById('list-ton-price').value);
     if (!expAmount || !tonPrice || expAmount <= 0 || tonPrice <= 0) return alert('Введите корректные данные');
-
     await fetch(`${API_URL}/market/list`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tgId: TG_ID, expAmount, tonPrice })
     });
-    closeListingModal();
-    fetchUserData();
-    loadMarket();
+    closeListingModal(); fetchUserData(); loadMarket();
 }
 
 async function buyListing(listingId) {
     await fetch(`${API_URL}/market/buy`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ buyerId: TG_ID, listingId })
     });
-    fetchUserData();
-    loadMarket();
+    fetchUserData(); loadMarket();
 }
 
 async function withdrawTon() {
@@ -114,81 +134,157 @@ async function withdrawTon() {
     if (!wallet) return;
     const amount = prompt('Сколько TON вывести?', playerTon);
     if (parseFloat(amount) > parseFloat(playerTon)) return alert('Недостаточно средств!');
-    
     await fetch(`${API_URL}/withdraw`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tgId: TG_ID, amount: parseFloat(amount), wallet: wallet })
     });
-    alert('Заявка создана!');
-    fetchUserData();
+    alert('Заявка создана!'); fetchUserData();
 }
 
 // --- ИГРОВОЙ ЦИКЛ И РИСОВАНИЕ ---
 
 function spawnMonster() {
-    monsters.push({ x: 360, y: 140 - Math.random() * 40, width: 30, height: 40, speed: 1 + Math.random(), hp: 1 + Math.floor(Math.random() * playerDamage) });
+    monsters.push({ 
+        x: Math.random() * 300, 
+        y: -40, 
+        width: 40, 
+        height: 40, 
+        speed: 0.5 + Math.random() * 1, 
+        hp: 1 + Math.floor(Math.random() * playerDamage),
+        type: Math.random() > 0.5 ? 'slime' : 'bat' // Разные монстры
+    });
 }
 
-// Рисовка Красивого Батлера (Пиксель-арт стиль)
+// Красивый Батлер (Пиксель-арт детально)
 function drawButler() {
     const bx = butler.x, by = butler.y;
-    ctx.fillStyle = '#f39c12'; // Шляпа
-    ctx.fillRect(bx + 10, by, 20, 10);
-    ctx.fillRect(bx + 5, by + 10, 30, 5);
+    ctx.save();
+    
+    // Отражение персонажа в зависимости от направления
+    if (butler.direction === -1) {
+        ctx.translate(bx + butler.width, by);
+        ctx.scale(-1, 1);
+        bx = 0; by = 0;
+    }
 
-    ctx.fillStyle = '#ffeaa7'; // Лицо
-    ctx.fillRect(bx + 12, by + 15, 16, 15);
+    // Плащ (развевается)
+    ctx.fillStyle = '#2c3e50';
+    ctx.fillRect(bx+5, by+20, 35, 35);
+    ctx.fillRect(bx+0, by+25, 10, 25 + Math.sin(animFrame)*5);
 
-    ctx.fillStyle = '#2d3436'; // Глаза
-    ctx.fillRect(bx + 15, by + 20, 4, 4);
-    ctx.fillRect(bx + 22, by + 20, 4, 4);
+    // Тело (Смокинг)
+    ctx.fillStyle = '#111111';
+    ctx.fillRect(bx+10, by+20, 25, 30);
+    
+    // Рубашка
+    ctx.fillStyle = '#ecf0f1';
+    ctx.fillRect(bx+20, by+20, 5, 30);
 
-    ctx.fillStyle = '#636e72'; // Пиджак
-    ctx.fillRect(bx + 8, by + 30, 24, 20);
-    ctx.fillStyle = '#dfe6e9'; // Рубашка
-    ctx.fillRect(bx + 18, by + 30, 4, 20);
+    // Ноги (Анимация шага)
+    ctx.fillStyle = '#111111';
+    if (Math.sin(animFrame * 0.2) > 0) {
+        ctx.fillRect(bx+12, by+50, 8, 15);
+        ctx.fillRect(bx+25, by+50, 8, 10);
+    } else {
+        ctx.fillRect(bx+12, by+50, 8, 10);
+        ctx.fillRect(bx+25, by+50, 8, 15);
+    }
+    // Ботинки
+    ctx.fillStyle = '#7f8c8d';
+    ctx.fillRect(bx+10, by+60, 10, 5);
+    ctx.fillRect(bx+25, by+60, 10, 5);
 
-    ctx.fillStyle = '#2d3436'; // Штаны
-    ctx.fillRect(bx + 10, by + 50, 8, 10);
-    ctx.fillRect(bx + 22, by + 50, 8, 10);
+    // Голова
+    ctx.fillStyle = '#ffeaa7';
+    ctx.fillRect(bx+12, by+5, 20, 15);
+
+    // Цилиндр
+    ctx.fillStyle = '#111111';
+    ctx.fillRect(bx+8, by-5, 28, 8); // Поля шляпы
+    ctx.fillRect(bx+14, by-20, 16, 18); // Тулья
+
+    // Монокль
+    ctx.strokeStyle = '#f1c40f';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(bx+27, by+10, 4, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bx+27, by+14); ctx.lineTo(bx+27, by+20); ctx.stroke(); // Цепочка
+
+    // Глаза
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(bx+16, by+9, 3, 3);
+    ctx.fillRect(bx+23, by+9, 3, 3);
+
+    // Пушка (Сверкает)
+    ctx.fillStyle = '#7f8c8d';
+    ctx.fillRect(bx+30, by+15, 15, 5); // Ствол
+    ctx.fillStyle = '#f1c40f';
+    ctx.fillRect(bx+30, by+20, 10, 3); // Рукоять
+    ctx.fillStyle = '#e74c3c'; // Огонь на конце
+    if (Date.now() - lastShot < 100) {
+        ctx.fillRect(bx+45, by+13, 5, 9);
+    }
+
+    ctx.restore();
 }
 
-// Рисовка Монстра
 function drawMonster(m) {
-    ctx.fillStyle = '#d63031'; // Тело
-    ctx.fillRect(m.x, m.y, m.width, m.height);
-    ctx.fillStyle = '#fdcb6e'; // Глаза
-    ctx.fillRect(m.x + 5, m.y + 10, 6, 6);
-    ctx.fillRect(m.x + 18, m.y + 10, 6, 6);
-    ctx.fillStyle = '#e17055'; // Рот
-    ctx.fillRect(m.x + 8, m.y + 25, 14, 5);
+    if (m.type === 'slime') {
+        ctx.fillStyle = '#e74c3c';
+        ctx.beginPath();
+        ctx.ellipse(m.x + 20, m.y + 25, 20, 15 + Math.sin(animFrame)*5, 0, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = 'white';
+        ctx.fillRect(m.x+10, m.y+15, 6, 6); // Глаза
+        ctx.fillRect(m.x+24, m.y+15, 6, 6);
+    } else {
+        // Летучая мышь
+        ctx.fillStyle = '#8e44ad';
+        ctx.fillRect(m.x+15, m.y+15, 10, 10); // Тело
+        // Крылья (машут)
+        if (Math.sin(animFrame * 0.5) > 0) {
+            ctx.fillRect(m.x, m.y+10, 15, 10);
+            ctx.fillRect(m.x+25, m.y+10, 15, 10);
+        } else {
+            ctx.fillRect(m.x+5, m.y+5, 10, 10);
+            ctx.fillRect(m.x+25, m.y+5, 10, 10);
+        }
+        ctx.fillStyle = 'yellow';
+        ctx.fillRect(m.x+17, m.y+17, 3, 3);
+        ctx.fillRect(m.x+22, m.y+17, 3, 3);
+    }
 }
 
 function gameLoop(timestamp) {
+    animFrame++;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Пол (земля)
+    ctx.fillStyle = '#2d3436';
+    ctx.fillRect(0, 370, 350, 30);
 
     // Движение Батлера
     butler.x += butler.speed * butler.direction;
-    if (butler.x > 150 || butler.x < 20) butler.direction *= -1;
+    if (butler.x > 280 || butler.x < 10) butler.direction *= -1;
 
     drawButler();
 
-    // Стрельба (зависит от playerFireRate)
+    // Стрельба ВВЕРХ (зависит от playerFireRate)
     if (timestamp - lastShot > playerFireRate) {
-        bullets.push({ x: butler.x + butler.width, y: butler.y + 35, width: 8, height: 3, speed: 6 });
+        bullets.push({ x: butler.x + 35, y: butler.y + 15, width: 4, height: 10, speed: 7 });
         lastShot = timestamp;
     }
 
-    // Пули
-    ctx.fillStyle = '#fdcb6e';
-    bullets = bullets.filter(b => b.x < 380);
-    bullets.forEach(b => { b.x += b.speed; ctx.fillRect(b.x, b.y, b.width, b.height); });
+    // Пули летят ВВЕРХ (y уменьшается)
+    ctx.fillStyle = '#f1c40f';
+    bullets = bullets.filter(b => b.y > -10);
+    bullets.forEach(b => { b.y -= b.speed; ctx.fillRect(b.x, b.y, b.width, b.height); });
 
-    // Монстры
-    monsters.forEach(m => { m.x -= m.speed; drawMonster(m); });
+    // Монстры падают ВНИЗ (y увеличивается)
+    monsters.forEach(m => { m.y += m.speed; drawMonster(m); });
 
-    // Коллизии
+    // Коллизии (Пуля летит вверх, монстр падает вниз)
     for (let i = monsters.length - 1; i >= 0; i--) {
         for (let j = bullets.length - 1; j >= 0; j--) {
             if (bullets[j].x < monsters[i].x + monsters[i].width &&
@@ -205,10 +301,8 @@ function gameLoop(timestamp) {
                     playerExp += expGain;
                     updateUI();
                     
-                    // Отправляем на сервер (с лимитом запросов, чтобы не спамить)
                     fetch(`${API_URL}/add-exp`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ tgId: TG_ID, amount: expGain })
                     });
                 }
@@ -216,12 +310,15 @@ function gameLoop(timestamp) {
             }
         }
     }
-    monsters = monsters.filter(m => m.x > -40);
+    
+    // Удаляем монстров упавших на землю
+    monsters = monsters.filter(m => m.y < 380);
+
     requestAnimationFrame(gameLoop);
 }
 
-// Спавн монстров
-setInterval(spawnMonster, 2000);
+// Спавн монстров сверху
+setInterval(spawnMonster, 1500);
 
 // Запуск
 fetchUserData();
