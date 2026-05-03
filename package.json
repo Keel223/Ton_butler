@@ -1,4 +1,14 @@
+{
+  "name": "ton-butler-game",
+  "version": "1.0.0",
+  "description": "Telegram Mini App TON Butler",
+  "main": "api/server.js",
   "scripts": {
-    "start": "vercel dev",
-    "build": "echo 'Building for Vercel'"
+    "start": "vercel dev"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.28.4",
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
   }
+}
