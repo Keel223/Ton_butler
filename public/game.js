@@ -1,13 +1,13 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-const TG_ID = "test_user_123"; // Заменить на Telegram ID
+const TG_ID = "test_user_123"; // Заменить на реальный TG ID
 const API_URL = '/api'; 
 const TREASURY_WALLET = "UQD1gupv0Z0UPnKKYENmerBA526cCiNvhdr4VO0LofATa8v6"; // Твой кошелек
 
 // --- TON CONNECT ---
 const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
-    manifestUrl: 'https://raw.githubusercontent.com/CryptoBute/ton-connect-manifest/main/tonconnect-manifest.json', // Временный манифест для теста
+    manifestUrl: '/tonconnect-manifest.json', // Теперь берем манифест из нашей папки public!
     buttonRootId: 'ton-connect-container'
 });
 
@@ -37,7 +37,6 @@ async function depositTon() {
     try {
         await tonConnectUI.sendTransaction(transaction);
         alert("Транзакция отправлена! Начисление произойдет после подтверждения сети.");
-        // В реальном проекте тут нужно слушать вебхук от TON, а для старта можно начислять вручную в админке
     } catch (e) {
         console.error(e);
     }
@@ -48,9 +47,9 @@ let playerExp = 0;
 let playerTon = 0.0;
 let playerDamage = 1;
 let playerFireRate = 500;
-let animFrame = 0; // Для анимации ходьбы
+let animFrame = 0;
 
-const butler = { x: 150, y: 320, width: 50, height: 70, speed: 2, direction: 1 };
+const butler = { x: 150, y: 310, width: 50, height: 70, speed: 2, direction: 1 };
 let monsters = [];
 let bullets = [];
 let lastShot = 0;
@@ -147,11 +146,11 @@ function spawnMonster() {
     monsters.push({ 
         x: Math.random() * 300, 
         y: -40, 
-        width: 40, 
-        height: 40, 
+        width: 30, 
+        height: 30, 
         speed: 0.5 + Math.random() * 1, 
         hp: 1 + Math.floor(Math.random() * playerDamage),
-        type: Math.random() > 0.5 ? 'slime' : 'bat' // Разные монстры
+        type: Math.random() > 0.5 ? 'slime' : 'bat'
     });
 }
 
@@ -160,27 +159,28 @@ function drawButler() {
     const bx = butler.x, by = butler.y;
     ctx.save();
     
-    // Отражение персонажа в зависимости от направления
+    // Отражение персонажа
     if (butler.direction === -1) {
         ctx.translate(bx + butler.width, by);
         ctx.scale(-1, 1);
         bx = 0; by = 0;
+    } else {
+         ctx.translate(bx, by);
+         bx = 0; by = 0;
     }
 
-    // Плащ (развевается)
+    // Плащ
     ctx.fillStyle = '#2c3e50';
     ctx.fillRect(bx+5, by+20, 35, 35);
     ctx.fillRect(bx+0, by+25, 10, 25 + Math.sin(animFrame)*5);
 
-    // Тело (Смокинг)
+    // Тело
     ctx.fillStyle = '#111111';
     ctx.fillRect(bx+10, by+20, 25, 30);
-    
-    // Рубашка
     ctx.fillStyle = '#ecf0f1';
     ctx.fillRect(bx+20, by+20, 5, 30);
 
-    // Ноги (Анимация шага)
+    // Ноги
     ctx.fillStyle = '#111111';
     if (Math.sin(animFrame * 0.2) > 0) {
         ctx.fillRect(bx+12, by+50, 8, 15);
@@ -200,29 +200,28 @@ function drawButler() {
 
     // Цилиндр
     ctx.fillStyle = '#111111';
-    ctx.fillRect(bx+8, by-5, 28, 8); // Поля шляпы
-    ctx.fillRect(bx+14, by-20, 16, 18); // Тулья
+    ctx.fillRect(bx+8, by-5, 28, 8);
+    ctx.fillRect(bx+14, by-20, 16, 18);
 
     // Монокль
-    ctx.strokeStyle = '#f1c40f';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(bx+27, by+10, 4, 0, Math.PI*2);
-    ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(bx+27, by+14); ctx.lineTo(bx+27, by+20); ctx.stroke(); // Цепочка
+    ctx.fillStyle = '#f1c40f';
+    ctx.fillRect(bx+24, by+8, 6, 6); // Оправа
+    ctx.fillRect(bx+26, by+14, 2, 6); // Цепочка
 
     // Глаза
     ctx.fillStyle = '#000000';
     ctx.fillRect(bx+16, by+9, 3, 3);
     ctx.fillRect(bx+23, by+9, 3, 3);
 
-    // Пушка (Сверкает)
+    // Пушка
     ctx.fillStyle = '#7f8c8d';
-    ctx.fillRect(bx+30, by+15, 15, 5); // Ствол
+    ctx.fillRect(bx+30, by+15, 15, 5);
     ctx.fillStyle = '#f1c40f';
-    ctx.fillRect(bx+30, by+20, 10, 3); // Рукоять
-    ctx.fillStyle = '#e74c3c'; // Огонь на конце
+    ctx.fillRect(bx+30, by+20, 10, 3);
+    
+    // Вспышка выстрела
     if (Date.now() - lastShot < 100) {
+        ctx.fillStyle = '#e74c3c';
         ctx.fillRect(bx+45, by+13, 5, 9);
     }
 
@@ -231,28 +230,31 @@ function drawButler() {
 
 function drawMonster(m) {
     if (m.type === 'slime') {
+        // Слайм (надежные прямоугольники)
         ctx.fillStyle = '#e74c3c';
-        ctx.beginPath();
-        ctx.ellipse(m.x + 20, m.y + 25, 20, 15 + Math.sin(animFrame)*5, 0, 0, Math.PI*2);
-        ctx.fill();
+        ctx.fillRect(m.x, m.y + 10, 30, 15); // Тело
+        ctx.fillRect(m.x + 5, m.y + 5, 20, 10); // Верхушка
         ctx.fillStyle = 'white';
-        ctx.fillRect(m.x+10, m.y+15, 6, 6); // Глаза
-        ctx.fillRect(m.x+24, m.y+15, 6, 6);
+        ctx.fillRect(m.x + 7, m.y + 10, 5, 5); // Левый глаз
+        ctx.fillRect(m.x + 18, m.y + 10, 5, 5); // Правый глаз
+        ctx.fillStyle = 'black';
+        ctx.fillRect(m.x + 9, m.y + 12, 2, 2); // Зрачок левый
+        ctx.fillRect(m.x + 20, m.y + 12, 2, 2); // Зрачок правый
     } else {
         // Летучая мышь
         ctx.fillStyle = '#8e44ad';
-        ctx.fillRect(m.x+15, m.y+15, 10, 10); // Тело
-        // Крылья (машут)
+        ctx.fillRect(m.x + 10, m.y + 10, 10, 10); // Тело
+        // Крылья
         if (Math.sin(animFrame * 0.5) > 0) {
-            ctx.fillRect(m.x, m.y+10, 15, 10);
-            ctx.fillRect(m.x+25, m.y+10, 15, 10);
+            ctx.fillRect(m.x, m.y + 5, 10, 10);
+            ctx.fillRect(m.x + 20, m.y + 5, 10, 10);
         } else {
-            ctx.fillRect(m.x+5, m.y+5, 10, 10);
-            ctx.fillRect(m.x+25, m.y+5, 10, 10);
+            ctx.fillRect(m.x, m.y + 15, 10, 5);
+            ctx.fillRect(m.x + 20, m.y + 15, 10, 5);
         }
         ctx.fillStyle = 'yellow';
-        ctx.fillRect(m.x+17, m.y+17, 3, 3);
-        ctx.fillRect(m.x+22, m.y+17, 3, 3);
+        ctx.fillRect(m.x + 12, m.y + 12, 2, 2); // Глаз
+        ctx.fillRect(m.x + 16, m.y + 12, 2, 2); // Глаз
     }
 }
 
@@ -270,21 +272,21 @@ function gameLoop(timestamp) {
 
     drawButler();
 
-    // Стрельба ВВЕРХ (зависит от playerFireRate)
+    // Стрельба ВВЕРХ
     if (timestamp - lastShot > playerFireRate) {
-        bullets.push({ x: butler.x + 35, y: butler.y + 15, width: 4, height: 10, speed: 7 });
+        bullets.push({ x: butler.x + (butler.direction === 1 ? 45 : 5), y: butler.y + 15, width: 4, height: 10, speed: 7 });
         lastShot = timestamp;
     }
 
-    // Пули летят ВВЕРХ (y уменьшается)
+    // Пули летят ВВЕРХ
     ctx.fillStyle = '#f1c40f';
     bullets = bullets.filter(b => b.y > -10);
     bullets.forEach(b => { b.y -= b.speed; ctx.fillRect(b.x, b.y, b.width, b.height); });
 
-    // Монстры падают ВНИЗ (y увеличивается)
+    // Монстры падают ВНИЗ
     monsters.forEach(m => { m.y += m.speed; drawMonster(m); });
 
-    // Коллизии (Пуля летит вверх, монстр падает вниз)
+    // Коллизии
     for (let i = monsters.length - 1; i >= 0; i--) {
         for (let j = bullets.length - 1; j >= 0; j--) {
             if (bullets[j].x < monsters[i].x + monsters[i].width &&
